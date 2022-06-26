@@ -1,0 +1,7 @@
+database:
+  hosts:
+    - 127.0.0.1
+  port: 5432
+  dbname: calendar_db
+  password: password
+  user: calendar_admin
