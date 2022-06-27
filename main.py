@@ -4,20 +4,20 @@ import uvicorn
 import uvloop
 from fastapi import FastAPI
 
-from src.api.methods import event, funcs, user
-from src.config import parse_config
-from src.util.module import get_all_module_classes
-from src.db import Database
+from lib.api.methods import events, funcs, users
+from lib.config import parse_config
+from lib.util.module import get_all_module_classes
+from lib.db import Database
 
-from src.sql import create_tables
+from lib.sql import create_tables
 
 uvloop.install()
 
 app = FastAPI(title='Calendar')
 
-app.include_router(event.router)
+app.include_router(events.router)
 app.include_router(funcs.router)
-app.include_router(user.router)
+app.include_router(users.router)
 
 
 @app.on_event("shutdown")

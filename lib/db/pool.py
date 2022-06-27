@@ -5,8 +5,8 @@ from collections import defaultdict
 
 import asyncpg
 from async_timeout import timeout as timeout_context
-from src.db.balancer_policy import BalancerPolicy
-from src.db.utils import Stopwatch, Dsn, split_dsn
+from lib.db.balancer_policy import BalancerPolicy
+from lib.db.utils import Stopwatch, Dsn, split_dsn
 from itertools import chain
 from logging import getLogger
 

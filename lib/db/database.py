@@ -2,8 +2,8 @@ import asyncio
 import os
 from typing import Optional
 
-from src.db.pool import PoolManager
-from src.util.module import BaseModule
+from lib.db.pool import PoolManager
+from lib.util.module import BaseModule
 
 
 class Database(BaseModule):

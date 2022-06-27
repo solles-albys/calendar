@@ -1,4 +1,4 @@
-from src.config.schema import _SCHEMA, initialize_schema
+from lib.config.schema import _SCHEMA, initialize_schema
 import yaml
 import cerberus
 from functools import lru_cache

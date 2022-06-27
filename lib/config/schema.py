@@ -1,5 +1,5 @@
-from src.util.module import get_all_module_classes
-from src.db import Database
+from lib.util.module import get_all_module_classes
+from lib.db import Database
 
 _SCHEMA = {
 
