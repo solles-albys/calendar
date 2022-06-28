@@ -79,7 +79,7 @@ async def get_users_from_event_rows(connection: Connection, event_rows: Iterable
 
     rows = await connection.fetch(
         f'''
-            SELECT * FROM {USERS_TABLE} WHERE login in $1;
+            SELECT * FROM {USERS_TABLE} WHERE login = ANY($1::text[]);
         ''',
         logins
     )

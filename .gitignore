@@ -1,3 +1,4 @@
 config.yaml
+dev_config.yaml
 .idea
 **/__pycache__

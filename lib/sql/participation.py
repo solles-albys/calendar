@@ -24,7 +24,7 @@ async def create_table_participation(connection: Connection):
     )
 
 
-async def insert_many_participation(connection: Connection, event_ids: list[int], participants: list[Participant]):
+async def insert_many_participation(connection: Connection, event_id: int, participants: list[Participant]):
     await connection.executemany(
         f'''
             INSERT INTO {PARTICIPATION_TABLE} (
@@ -36,7 +36,6 @@ async def insert_many_participation(connection: Connection, event_ids: list[int]
         (
             (event_id, participant.user.login, participant.decision.value)
             for participant in participants
-            for event_id in event_ids
         )
     )
 

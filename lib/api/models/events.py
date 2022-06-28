@@ -57,6 +57,7 @@ class Event(BaseModel):
     description: str = ''
     notifications: list[Notification] = []
     participants: list[Participant] = []
+    repetition: Optional[Repetition] = None
 
 
 class RCreateEvent(BaseModel):

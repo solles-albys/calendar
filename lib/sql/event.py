@@ -3,8 +3,9 @@ from typing import Optional
 
 from asyncpg import Connection
 
-from lib.api.models.events import RCreateEvent, Event, Repetition, Participant, EDecision
+from lib.api.models.events import RCreateEvent, Event, Repetition, Participant, EDecision, ERepeatType
 from lib.api.models.users import User
+from lib.api.models.common import EDay
 from lib.sql.user import get_one_user, get_users_from_event_rows
 from lib.sql.participation import insert_many_participation
 from lib.sql.const import PARTICIPATION_TABLE, EVENTS_TABLE, USERS_TABLE
@@ -22,7 +23,11 @@ async def create_table_events(connection: Connection):
                 description             text,
                 start_time              timestamp,
                 end_time                timestamp,
-                repeate_from_id         integer CONSTRAINT event_base__fk references {EVENTS_TABLE}
+                repeat_type            varchar(100),
+                repeat_weekly_days     varchar(100),
+                repeat_monthly_last_week       bool,
+                repeat_due_date        timestamp,
+                repeat_each            int
             );
         '''
     )
@@ -37,9 +42,14 @@ async def insert_event(connection: Connection, request: RCreateEvent) -> Event:
                     name,
                     description,
                     start_time,
-                    end_time
+                    end_time,
+                    repeat_type,
+                    repeat_weekly_days,
+                    repeat_monthly_last_week,
+                    repeat_due_date,
+                    repeat_each
                 ) VALUES (
-                    $1, $2, $3, $4, $5
+                    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
                 )
                 RETURNING id;
             ''',
@@ -48,6 +58,11 @@ async def insert_event(connection: Connection, request: RCreateEvent) -> Event:
             request.description,
             request.start_time.replace(tzinfo=None),
             request.end_time.replace(tzinfo=None),
+            request.repetition.type.value if request.repetition else None,
+            ','.join(request.repetition.weekly_days) if request.repetition else '',
+            request.repetition.monthly_last_week if request.repetition else None,
+            request.repetition.due_date.replace(tzinfo=None) if request.repetition else None,
+            request.repetition.each if request.repetition else None
         )
 
         event = Event(
@@ -58,53 +73,46 @@ async def insert_event(connection: Connection, request: RCreateEvent) -> Event:
             name=request.name,
             description=request.description,
             participants=request.participants,
+            repetition=request.repetition,
         )
-
-        if request.repetition:
-            await _create_repetitions(connection, request.repetition, base_event=event)
 
         # if request.notifications:
         # TODO
 
         if request.participants:
-            repeates_ids = await connection.fetch(f'''
-                SELECT id FROM {EVENTS_TABLE} where repeate_from_id = $1;
-            ''', event.id)
-
-            event_ids = [event.id, *(r['id'] for r in repeates_ids)]
-            await insert_many_participation(connection, event_ids, request.participants)
+            await insert_many_participation(connection, base_event_id, request.participants)
 
         return event
 
 
-async def _create_repetitions(
-        connection: Connection, repetition: Repetition, base_event: Event
-):
-    args: list[tuple] = []
-
-    end_date = repetition.due_date or datetime.now() + timedelta(days=300)
-    duration = base_event.end_time - base_event.start_time
-
-    for start_date in repetitions.iterate_repetitions(repetition, base_event.start_time, end_date):
-        args.append(
-            (base_event.author.name, base_event.description, start_date, start_date + duration, base_event.id)
-        )
-
-    await connection.executemany(
-        f'''
-            INSERT INTO {EVENTS_TABLE} (
-                author,
-                name,
-                description,
-                start_time,
-                end_time,
-                repeate_from_id
-            ) VALUES (
-                $1, $2, $3, $4, $5, $6
-            );
-        ''',
-        args,
-    )
+# async def _create_repetitions(
+#         connection: Connection, repetition: Repetition, base_event: Event
+# ):
+#     args: list[tuple] = []
+#
+#     end_date = repetition.due_date or datetime.now() + timedelta(days=300)
+#     duration = base_event.end_time - base_event.start_time
+#
+#     for start_date in repetitions.iterate_repetitions(repetition, base_event.start_time, end_date):
+#         args.append(
+#             (base_event.author.name, base_event.description, start_date, start_date + duration, base_event.id)
+#         )
+#
+#     await connection.executemany(
+#         f'''
+#             INSERT INTO {EVENTS_TABLE} (
+#                 author,
+#                 name,
+#                 description,
+#                 start_time,
+#                 end_time,
+#                 repeate_from_id
+#             ) VALUES (
+#                 $1, $2, $3, $4, $5, $6
+#             );
+#         ''',
+#         args,
+#     )
 
 
 async def get_one_event(connection: Connection, event_id: int) -> Optional[Event]:
@@ -142,32 +150,109 @@ async def get_one_event(connection: Connection, event_id: int) -> Optional[Event
     return event
 
 
-async def get_user_events(connection: Connection, user_login: str) -> list[Event]:
-    response = await connection.fetch(f'''
-        SELECT * FROM {EVENTS_TABLE} e
-        RIGHT OUTER JOIN {PARTICIPATION_TABLE} p on e.id = p.event_id || e.repeate_from_id = p.event_id
-        WHERE p.user_login = $1 or e.author = $1;
-    ''', user_login)
+def is_event_in_interval(event: Event, time_from: datetime, time_to: datetime):
+    return event.start_time < time_to and event.end_time > time_from
 
-    users: dict[str, User] = get_users_from_event_rows(connection, response)
+
+def extend_with_repeats(result: list[Event], time_from: datetime, time_to: datetime) -> bool:
+    if not result:
+        return False
+
+    base_event = result[-1]
+    if not is_event_in_interval(base_event, time_from, time_to):
+        result.pop(-1)
+
+    if base_event.repetition is None:
+        return False
+
+    repeat_until = time_to
+    if base_event.repetition.due_date is not None:
+        repeat_until = min(time_to, base_event.repetition.due_date)
+
+    repeat_dates = repetitions.iterate_repetitions(
+        repetition=base_event.repetition,
+        event_start_date=base_event.start_time,
+        repeat_start_date=time_from,
+        repeat_end_date=repeat_until
+    )
+
+    if not repeat_dates:
+        return False
+
+    duration = base_event.end_time - base_event.start_time
+
+    for date in repeat_dates:
+        # do not need to deepcopy, no future usage of mutable fields not supposed to happen
+        new_event = base_event.copy(deep=False)
+        new_event.start_time = date
+        new_event.end_time = date + duration
+        result.append(new_event)
+
+    return True
+
+
+async def get_user_events(connection: Connection, user_login: str, time_from: datetime, time_to: datetime) -> list[Event]:
+    # TODO: fix условие вхождения
+    response = await connection.fetch(
+        f'''
+            SELECT * FROM {EVENTS_TABLE} e
+            LEFT OUTER JOIN {PARTICIPATION_TABLE} p on e.id = p.event_id
+            WHERE (p.user_login = $1 OR e.author = $1) AND
+                  (
+                      (e.end_time > $2 AND e.start_time < $3) OR
+                      (e.repeat_type is not NULL AND (e.repeat_due_date is NULL OR e.repeat_due_date >= $2))
+                  );
+        ''',
+        user_login, time_from.replace(tzinfo=None), time_to.replace(tzinfo=None)
+    )
+
+    users: dict[str, User] = await get_users_from_event_rows(connection, response)
 
     result: list[Event] = []
+    last_is_repeat = False
     for row in response:
         if not result or result[-1].id != row['id']:
-            result.append(Event(
+            if len(result) > 0:
+                was_extended = extend_with_repeats(result, time_from, time_to)
+                if not was_extended:
+                    last_is_repeat = last_is_repeat
+                else:
+                    last_is_repeat = True
+
+            event = Event(
                 id=row['id'],
                 author=users[row['author']],
                 name=row['name'],
                 description=row['description'],
                 start_time=row['start_time'],
                 end_time=row['end_time'],
-            ))
-
-        result[-1].participants.append(
-            Participant(
-                user=users[row['user_login']],
-                decision=EDecision(row['accept_type']),
             )
-        )
+
+            if row['repeat_type'] is not None:
+                weekly_days = []
+                for v in row['repeat_weekly_days'].split(','):
+                    if v:
+                        weekly_days.append(EDay(v))
+
+                event.repetition = Repetition(
+                    type=ERepeatType(row['repeat_type']),
+                    weekly_days=weekly_days,
+                    monthly_last_week=row['repeat_monthly_last_week'],
+                    due_date=row['repeat_due_date'],
+                    each=row['repeat_each']
+                )
+
+            result.append(event)
+
+        if row['user_login']:
+            result[-1].participants.append(
+                Participant(
+                    user=users[row['user_login']],
+                    decision=EDecision(row['decision']),
+                )
+            )
+
+    if not last_is_repeat:
+        extend_with_repeats(result, time_from, time_to)
 
     return result

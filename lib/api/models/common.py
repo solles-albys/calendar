@@ -14,7 +14,7 @@ class EDay(str, Enum):
 
     @classmethod
     def from_datetime(cls, d: datetime) -> 'EDay':
-        for num, day in zip(range(6), cls):
+        for num, day in zip(range(7), cls):
             if d.weekday() == num:
                 return day
 

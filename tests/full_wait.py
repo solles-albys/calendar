@@ -4,6 +4,12 @@ from typing import Callable
 
 
 def full_wait_pending(func: Callable):
+    """
+        Somehow loop doesn't stop working after executing test from module
+        that affects next tests in module (they cannot start)
+
+        So every async test should be decorated with current decorator
+    """
 
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
@@ -12,6 +18,7 @@ def full_wait_pending(func: Callable):
         after = set(asyncio.all_tasks())
 
         for t in after - before:
+            # Asyncpg pool task, should be alive
             if '_check_pool_task' in str(t):
                 continue
 

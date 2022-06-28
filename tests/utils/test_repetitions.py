@@ -16,7 +16,13 @@ def test_daily_repetition():
         each=1,
         due_date=START_DATE + timedelta(days=7),
     )
-    result = list(iterate_repetitions(repetition, START_DATE, end_date=repetition.due_date))
+
+    result = list(iterate_repetitions(
+        repetition=repetition,
+        event_start_date=START_DATE,
+        repeat_start_date=START_DATE - timedelta(days=1),
+        repeat_end_date=repetition.due_date
+    ))
 
     assert len(result) == 7
     assert result == [
@@ -29,7 +35,12 @@ def test_daily_repetition():
         each=4,
         due_date=START_DATE + timedelta(days=7*4),
     )
-    result = list(iterate_repetitions(repetition, START_DATE, end_date=repetition.due_date))
+    result = list(iterate_repetitions(
+        repetition=repetition,
+        event_start_date=START_DATE,
+        repeat_start_date=START_DATE - timedelta(days=1),
+        repeat_end_date=repetition.due_date
+    ))
     assert len(result) == 7
     assert result == [
         START_DATE + timedelta(days=i*4)
@@ -43,7 +54,13 @@ def test_weakly_repetition():
         each=1,
         due_date=START_DATE + timedelta(weeks=7)
     )
-    result = list(iterate_repetitions(repetition, START_DATE, end_date=repetition.due_date))
+
+    result = list(iterate_repetitions(
+        repetition=repetition,
+        event_start_date=START_DATE,
+        repeat_start_date=START_DATE - timedelta(days=1),
+        repeat_end_date=repetition.due_date
+    ))
 
     assert len(result) == 7
     assert result == [
@@ -56,7 +73,12 @@ def test_weakly_repetition():
         each=3,
         due_date=START_DATE + timedelta(weeks=7*3)
     )
-    result = list(iterate_repetitions(repetition, START_DATE, end_date=repetition.due_date))
+    result = list(iterate_repetitions(
+        repetition=repetition,
+        event_start_date=START_DATE,
+        repeat_start_date=START_DATE - timedelta(days=1),
+        repeat_end_date=repetition.due_date
+    ))
 
     assert len(result) == 7
     assert result == [
@@ -70,7 +92,12 @@ def test_weakly_repetition():
         weekly_days=[EDay.mon, EDay.fri],
         due_date=START_DATE + timedelta(weeks=2 * 2)
     )
-    result = list(iterate_repetitions(repetition, START_DATE, end_date=repetition.due_date))
+    result = list(iterate_repetitions(
+        repetition=repetition,
+        event_start_date=START_DATE,
+        repeat_start_date=START_DATE - timedelta(days=1),
+        repeat_end_date=repetition.due_date
+    ))
 
     assert len(result) == 4
     date_mon = START_DATE - timedelta(days=6)
@@ -90,7 +117,12 @@ def test_monthly_number_repetition():
         due_date=START_DATE + relativedelta(months=8)
     )
 
-    result = list(iterate_repetitions(repetition, START_DATE, end_date=repetition.due_date))
+    result = list(iterate_repetitions(
+        repetition=repetition,
+        event_start_date=START_DATE,
+        repeat_start_date=START_DATE - timedelta(days=1),
+        repeat_end_date=repetition.due_date
+    ))
 
     assert len(result) == 4
     assert result == [
@@ -106,7 +138,12 @@ def test_monthly_day_weekno_repetition():
         due_date=START_DATE + relativedelta(months=8)
     )
 
-    result = list(iterate_repetitions(repetition, START_DATE, end_date=repetition.due_date))
+    result = list(iterate_repetitions(
+        repetition=repetition,
+        event_start_date=START_DATE,
+        repeat_start_date=START_DATE - timedelta(days=1),
+        repeat_end_date=repetition.due_date
+    ))
 
     assert len(result) == 4
     assert result == [
@@ -122,7 +159,12 @@ def test_monthly_day_weekno_repetition():
         monthly_last_week=True,
         due_date=START_DATE + relativedelta(months=8)
     )
-    result = list(iterate_repetitions(repetition, START_DATE, end_date=repetition.due_date))
+    result = list(iterate_repetitions(
+        repetition=repetition,
+        event_start_date=START_DATE,
+        repeat_start_date=START_DATE - timedelta(days=1),
+        repeat_end_date=repetition.due_date
+    ))
 
     assert len(result) == 4
     assert result == [
@@ -139,7 +181,12 @@ def test_yearly_repetition():
         each=2,
         due_date=START_DATE + relativedelta(years=8)
     )
-    result = list(iterate_repetitions(repetition, START_DATE, end_date=repetition.due_date))
+    result = list(iterate_repetitions(
+        repetition=repetition,
+        event_start_date=START_DATE,
+        repeat_start_date=START_DATE - timedelta(days=1),
+        repeat_end_date=repetition.due_date
+    ))
 
     assert len(result) == 4
     assert result == [
@@ -154,7 +201,12 @@ def test_workday_repetition():
         due_date=START_DATE + timedelta(weeks=2)
     )
 
-    result = list(iterate_repetitions(repetition, START_DATE, end_date=repetition.due_date))
+    result = list(iterate_repetitions(
+        repetition=repetition,
+        event_start_date=START_DATE,
+        repeat_start_date=START_DATE - timedelta(days=1),
+        repeat_end_date=repetition.due_date
+    ))
 
     assert len(result) == 10
     assert result == [
