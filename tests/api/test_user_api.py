@@ -9,6 +9,7 @@ from lib.api.models.events import Event, RCreateEvent, Repetition, Participant, 
 from lib.api.models.common import EDay
 from lib.sql.const import USERS_TABLE
 from tests.full_wait import full_wait_pending
+from dateutil.relativedelta import relativedelta
 from datetime import datetime, timedelta
 
 
@@ -111,6 +112,28 @@ async def test_get_user_events_weekly_repeated(db):
     event.repetition = Repetition(
         type=ERepeatType.weakly,
         each=2,
+        due_date=datetime(2022, 7, 26)
+    )  # 26.6, 10.7, 24.7
+
+    await create_event(event)
+
+    events = await get_user_events(TEST_USER.login, datetime(2022, 7, 25), datetime(2022, 8, 25))
+    assert not events
+
+    events = await get_user_events(TEST_USER.login, datetime(2022, 7, 9), datetime(2022, 7, 25))
+    assert len(events) == 2
+    assert events[0].start_time == datetime(2022, 7, 10, 15)
+
+
+@pytest.mark.asyncio
+@full_wait_pending
+async def test_get_user_events_weekly_days_repeated(db):
+    await create_user(TEST_USER)
+
+    event = SIMPLE_EVENT_REQ.copy(deep=True)
+    event.repetition = Repetition(
+        type=ERepeatType.weakly,
+        each=2,
         weekly_days=[EDay.wed, EDay.sun],
         due_date=datetime(2022, 7, 11)
     )  # 26.6, 6.7, 10.7
@@ -126,3 +149,77 @@ async def test_get_user_events_weekly_repeated(db):
     events = await get_user_events(TEST_USER.login, datetime(2022, 6, 28), datetime(2022, 7, 12))
     assert len(events) == 2
     assert events[0].start_time == datetime(2022, 7, 6, 15)
+
+
+@pytest.mark.asyncio
+@full_wait_pending
+async def test_get_user_events_monthly_number(db):
+    await create_user(TEST_USER)
+
+    event = SIMPLE_EVENT_REQ.copy(deep=True)
+    event.repetition = Repetition(
+        type=ERepeatType.monthly_number,
+        each=2,
+        due_date=datetime(2022, 6, 26) + relativedelta(months=8)
+    )
+    await create_event(event)
+
+    events = await get_user_events(TEST_USER.login, datetime(2022, 7, 27), datetime(2023, 7, 27))
+    assert len(events) == 3
+    assert events[0].start_time == datetime(2022, 8, 26, 15)
+
+
+@pytest.mark.asyncio
+@full_wait_pending
+async def test_get_user_events_monthly_last_week(db):
+    await create_user(TEST_USER)
+
+    event = SIMPLE_EVENT_REQ.copy(deep=True)
+    event.repetition = Repetition(
+        type=ERepeatType.monthly_day_weekno,
+        monthly_last_week=True,
+        each=2,
+        due_date=datetime(2022, 6, 26) + relativedelta(months=6)
+    )  # 26.6, 28.8, 30.10, 25.12
+    await create_event(event)
+
+    events = await get_user_events(TEST_USER.login, datetime(2022, 7, 27), datetime(2023, 7, 27))
+    assert len(events) == 3
+    assert events[0].start_time == datetime(2022, 8, 28, 15)
+
+
+@pytest.mark.asyncio
+@full_wait_pending
+async def test_get_user_events_monthly_week_number(db):
+    await create_user(TEST_USER)
+
+    event = SIMPLE_EVENT_REQ.copy(deep=True)
+    event.repetition = Repetition(
+        type=ERepeatType.monthly_day_weekno,
+        each=2,
+        due_date=datetime(2022, 6, 26) + relativedelta(months=6)
+    )  # 26.6, 28.8, 23.10, 25.12
+    await create_event(event)
+
+    events = await get_user_events(TEST_USER.login, datetime(2022, 7, 27), datetime(2023, 7, 27))
+    assert len(events) == 3
+    assert events[0].start_time == datetime(2022, 8, 28, 15)
+    assert events[1].start_time == datetime(2022, 10, 23, 15)
+
+
+@pytest.mark.asyncio
+@full_wait_pending
+async def test_get_user_events_yearly(db):
+    await create_user(TEST_USER)
+
+    event = SIMPLE_EVENT_REQ.copy(deep=True)
+    event.repetition = Repetition(
+        type=ERepeatType.yearly,
+        each=2,
+        due_date=datetime(2022, 6, 26) + relativedelta(years=6) + timedelta(hours=16)
+    )  # 26.6.2022, 26.6.2024, 26.6.2026, 26.6.2028
+    await create_event(event)
+
+    events = await get_user_events(TEST_USER.login, datetime(2022, 7, 27), datetime(2030, 7, 27))
+    assert len(events) == 3
+    assert events[0].start_time == datetime(2024, 6, 26, 15)

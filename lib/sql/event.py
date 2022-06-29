@@ -61,7 +61,7 @@ async def insert_event(connection: Connection, request: RCreateEvent) -> Event:
             request.repetition.type.value if request.repetition else None,
             ','.join(request.repetition.weekly_days) if request.repetition else '',
             request.repetition.monthly_last_week if request.repetition else None,
-            request.repetition.due_date.replace(tzinfo=None) if request.repetition else None,
+            request.repetition.due_date.replace(tzinfo=None) if request.repetition and request.repetition.due_date else None,
             request.repetition.each if request.repetition else None
         )
 
@@ -85,40 +85,10 @@ async def insert_event(connection: Connection, request: RCreateEvent) -> Event:
         return event
 
 
-# async def _create_repetitions(
-#         connection: Connection, repetition: Repetition, base_event: Event
-# ):
-#     args: list[tuple] = []
-#
-#     end_date = repetition.due_date or datetime.now() + timedelta(days=300)
-#     duration = base_event.end_time - base_event.start_time
-#
-#     for start_date in repetitions.iterate_repetitions(repetition, base_event.start_time, end_date):
-#         args.append(
-#             (base_event.author.name, base_event.description, start_date, start_date + duration, base_event.id)
-#         )
-#
-#     await connection.executemany(
-#         f'''
-#             INSERT INTO {EVENTS_TABLE} (
-#                 author,
-#                 name,
-#                 description,
-#                 start_time,
-#                 end_time,
-#                 repeate_from_id
-#             ) VALUES (
-#                 $1, $2, $3, $4, $5, $6
-#             );
-#         ''',
-#         args,
-#     )
-
-
 async def get_one_event(connection: Connection, event_id: int) -> Optional[Event]:
     result = await connection.fetch(f'''
         SELECT * FROM {EVENTS_TABLE} e
-        RIGHT OUTER JOIN {PARTICIPATION_TABLE} p on e.id = p.event_id || e.repeate_from_id = p.event_id
+        LEFT OUTER JOIN {PARTICIPATION_TABLE} p on e.id = p.event_id
         WHERE e.id = $1
     ''', event_id)
 
@@ -127,7 +97,7 @@ async def get_one_event(connection: Connection, event_id: int) -> Optional[Event
 
     # TODO: fetch notifications
 
-    users: dict[str, User] = get_users_from_event_rows(connection, result)
+    users: dict[str, User] = await get_users_from_event_rows(connection, result)
 
     event_row = result[0]
     event = Event(
@@ -140,12 +110,13 @@ async def get_one_event(connection: Connection, event_id: int) -> Optional[Event
     )
 
     for row in result:
-        event.participants.append(
-            Participant(
-                user=users[row['user_login']],  # TODO: fetch user in one request,
-                decision=EDecision(row['accept_type']),
+        if row['user_login']:
+            event.participants.append(
+                Participant(
+                    user=users[row['user_login']],  # TODO: fetch user in one request,
+                    decision=EDecision(row['decision']),
+                )
             )
-        )
 
     return event
 
@@ -191,20 +162,23 @@ def extend_with_repeats(result: list[Event], time_from: datetime, time_to: datet
     return True
 
 
-async def get_user_events(connection: Connection, user_login: str, time_from: datetime, time_to: datetime) -> list[Event]:
+async def get_many_users_events(connection: Connection, logins: set[str], time_from: datetime, time_to: datetime) -> list[Event]:
     # TODO: fix условие вхождения
     response = await connection.fetch(
         f'''
             SELECT * FROM {EVENTS_TABLE} e
             LEFT OUTER JOIN {PARTICIPATION_TABLE} p on e.id = p.event_id
-            WHERE (p.user_login = $1 OR e.author = $1) AND
+            WHERE (p.user_login = ANY($1::text[]) OR e.author = ANY($1::text[])) AND
                   (
                       (e.end_time > $2 AND e.start_time < $3) OR
                       (e.repeat_type is not NULL AND (e.repeat_due_date is NULL OR e.repeat_due_date >= $2))
                   );
         ''',
-        user_login, time_from.replace(tzinfo=None), time_to.replace(tzinfo=None)
+        logins, time_from.replace(tzinfo=None), time_to.replace(tzinfo=None)
     )
+
+    if not response:
+        return []
 
     users: dict[str, User] = await get_users_from_event_rows(connection, response)
 
@@ -255,4 +229,8 @@ async def get_user_events(connection: Connection, user_login: str, time_from: da
     if not last_is_repeat:
         extend_with_repeats(result, time_from, time_to)
 
-    return result
+    return sorted(result, key=lambda e: e.start_time)
+
+
+async def get_user_events(connection: Connection, login: str, time_from: datetime, time_to: datetime):
+    return await get_many_users_events(connection, {login,}, time_from, time_to)

@@ -54,14 +54,16 @@ def set_start_date_due_to_interval(
 
             return result if result <= repeat_end_date else None
         else:
-            result = event_start_date + timedelta(weeks=repetition.each)
+            result = event_start_date + timedelta(weeks=relativedelta(repeat_start_date, event_start_date).weeks - 1)
+            # result = event_start_date + timedelta(weeks=repetition.each)
             while result < repeat_start_date:
                 result += timedelta(weeks=repetition.each)
 
             return result if result <= repeat_end_date else None
 
     elif repetition.type == ERepeatType.monthly_number:
-        result = event_start_date + relativedelta(months=+repetition.each)
+        skip_periods = relativedelta(repeat_start_date, event_start_date).months // repetition.each
+        result = event_start_date + relativedelta(months=skip_periods * repetition.each)
         while result < repeat_start_date:
             result += relativedelta(months=+repetition.each)
 
@@ -69,7 +71,8 @@ def set_start_date_due_to_interval(
 
     elif repetition.type == ERepeatType.monthly_day_weekno:
         if repetition.monthly_last_week:
-            result = event_start_date + relativedelta(months=repetition.each, day=31, weekday=weekday(start_date.weekday())(-1))
+            skip_periods = relativedelta(repeat_start_date, event_start_date).months // repetition.each
+            result = event_start_date + relativedelta(months=repetition.each * skip_periods, day=31, weekday=weekday(start_date.weekday())(-1))
             if result > repeat_end_date:
                 return None
 
@@ -79,7 +82,9 @@ def set_start_date_due_to_interval(
             return result if result <= repeat_end_date else None
         else:
             week_no = date.week_of_month(start_date)
-            result = date.get_next_month_exact_week_day(start_date, week_no, repetition.each)
+
+            skip_periods = relativedelta(repeat_start_date, event_start_date).months // repetition.each
+            result = date.get_next_month_exact_week_day(start_date, week_no, repetition.each * skip_periods)
             if result > repeat_end_date:
                 return None
 
@@ -89,7 +94,8 @@ def set_start_date_due_to_interval(
             return result if result <= repeat_end_date else None
 
     elif repetition.type == ERepeatType.yearly:
-        result = event_start_date + relativedelta(years=+repetition.each)
+        skip_periods = (relativedelta(repeat_start_date, event_start_date).years - 1) // repetition.each
+        result = event_start_date + relativedelta(years=repetition.each * skip_periods)
         if result > repeat_end_date:
             return None
 

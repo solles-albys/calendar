@@ -17,6 +17,8 @@ async def create_event(event_create_request: RCreateEvent) -> Event:
             event = await insert_event(connection, event_create_request)
         except exc.UniqueViolationError:
             return HTTPException(status_code=400, detail='Event already exists')
+        except exc.ForeignKeyViolationError:
+            return HTTPException(status_code=400, detail='User not found')
 
     return event
 

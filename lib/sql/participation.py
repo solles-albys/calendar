@@ -43,11 +43,7 @@ async def insert_many_participation(connection: Connection, event_id: int, parti
 async def accept_participation(connection: Connection, event_id: int, user_login: str, decision: EDecision):
     await connection.execute(
         f'''
-            UPDATE {PARTICIPATION_TABLE} SET {{
-                decision = $1
-            }} WHERE (
-                (event_id = $2 OR event_id = (SELECT repeate_from_id from {EVENTS_TABLE} WHERE id = event_id)) 
-                AND user_login = $3;
+            UPDATE {PARTICIPATION_TABLE} SET decision = $1 WHERE event_id = $2 AND user_login = $3;
         ''',
         decision.value, event_id, user_login
     )
