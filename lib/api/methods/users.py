@@ -9,11 +9,15 @@ from lib.db import Database
 from lib.sql.user import insert_user, get_one_user
 from lib.sql.event import get_user_events as sql_get_user_events
 
+from logging import getLogger
+
+logger = getLogger('api.users')
+
 router = APIRouter(
     prefix='/users'
 )
 
-DEBUG_MODE = os.environ.get('DEBUG_MODE', 0)
+
 USER_EXISTS = HTTPException(status_code=400, detail='User already exists')
 
 
@@ -28,7 +32,8 @@ async def create_user(user: UserFull):
     except exc.UniqueViolationError:
         return HTTPException(status_code=400, detail='User already exists')
     except Exception as e:
-        pass  # TODO: log
+        logger.exception('failed to create user')
+        return HTTPException(status_code=500)
 
 
 @router.get('/{login}/events')
@@ -38,6 +43,9 @@ async def get_user_events(login: str, time_from: datetime, time_to: datetime):
             await get_one_user(connection, login, full=False)
         except exc.UniqueViolationError:
             return HTTPException(status_code=400, detail='User already exists')
+        except Exception as e:
+            logger.exception('failed to load user')
+            return HTTPException(status_code=500)
 
         events = await sql_get_user_events(connection, login, time_from, time_to)
 

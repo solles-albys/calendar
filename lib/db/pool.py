@@ -17,7 +17,7 @@ DEFAULT_MASTER_AS_REPLICA_WEIGHT = 0.
 DEFAULT_STOPWATCH_WINDOW_SIZE = 128
 
 
-logger = getLogger(__name__)
+logger = getLogger('asyncpg.pool')
 
 
 class PoolAcquireContext:

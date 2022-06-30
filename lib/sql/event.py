@@ -8,6 +8,7 @@ from lib.api.models.users import User
 from lib.api.models.common import EDay
 from lib.sql.user import get_one_user, get_users_from_event_rows
 from lib.sql.participation import insert_many_participation
+from lib.sql.notifications import insert_notifications
 from lib.sql.const import PARTICIPATION_TABLE, EVENTS_TABLE, USERS_TABLE
 from lib.util import repetitions
 
@@ -76,8 +77,8 @@ async def insert_event(connection: Connection, request: RCreateEvent) -> Event:
             repetition=request.repetition,
         )
 
-        # if request.notifications:
-        # TODO
+        if request.notifications:
+            await insert_notifications(connection, event)
 
         if request.participants:
             await insert_many_participation(connection, base_event_id, request.participants)
@@ -113,7 +114,7 @@ async def get_one_event(connection: Connection, event_id: int) -> Optional[Event
         if row['user_login']:
             event.participants.append(
                 Participant(
-                    user=users[row['user_login']],  # TODO: fetch user in one request,
+                    user=users[row['user_login']],
                     decision=EDecision(row['decision']),
                 )
             )
@@ -163,7 +164,6 @@ def extend_with_repeats(result: list[Event], time_from: datetime, time_to: datet
 
 
 async def get_many_users_events(connection: Connection, logins: set[str], time_from: datetime, time_to: datetime) -> list[Event]:
-    # TODO: fix условие вхождения
     response = await connection.fetch(
         f'''
             SELECT * FROM {EVENTS_TABLE} e

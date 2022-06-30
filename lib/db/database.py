@@ -61,5 +61,3 @@ class Database(BaseModule):
 
     async def on_shutdown(self):
         await self.close()
-
-

@@ -1,11 +1,12 @@
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from enum import Enum
-from datetime import datetime
+from datetime import datetime, timedelta
 from lib.api.models.users import User
 from lib.api.models.common import EDay
 
+import re
 
 class EDecision(str, Enum):
     yes = 'yes'
@@ -43,9 +44,32 @@ class EChannel(str, Enum):
     slack = 'slack'
 
 
+NOTIFICATION_OFFSET_RE = re.compile(r'\d+[mhd]')
+
+
 class Notification(BaseModel):
     channel: EChannel
     offset: str
+
+    @validator('offset')
+    def validate_offset_expression(cls, value):
+        match = NOTIFICATION_OFFSET_RE.fullmatch(value)
+
+        if not match:
+            raise ValueError('offset should have format [0-9]+[mhd]')
+
+        num = int(value[:-1])
+        if value[-1] == 'm':
+            result = timedelta(minutes=num)
+        elif value[-1] == 'h':
+            result = timedelta(hours=num)
+        elif value[-2] == 'd':
+            result = timedelta(days=num)
+        else:
+            raise ValueError(f'unknown offset type: {value[-1]}')
+
+        if result > timedelta(days=50):
+            raise ValueError('offset should be less then 50 days')
 
 
 class Event(BaseModel):

@@ -4,6 +4,8 @@ import uvicorn
 import uvloop
 from fastapi import FastAPI
 
+import logging.config
+
 from lib.api.methods import events, funcs, users
 from lib.config import parse_config
 from lib.util.module import get_all_module_classes
@@ -31,6 +33,8 @@ async def on_shutdown():
 async def on_start():
     config = parse_config('config.yaml')
 
+    logging.config.dictConfig(config['logging'])
+
     # initialize modules with configs
     for module in get_all_module_classes():
         if module.CONFIG_KEY:
@@ -51,4 +55,5 @@ if __name__ == '__main__':
     parser.add_argument('--config', '-c', type=str, help='Path to configuration yaml file')
     args = parser.parse_args()
 
+    # TODO: set uvicorn server log config from file
     uvicorn.run('main:app', host=args.host, port=args.port, reload=True, loop="uvloop")

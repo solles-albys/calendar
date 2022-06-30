@@ -1,8 +1,27 @@
 from lib.util.module import get_all_module_classes
-from lib.db import Database
 
 _SCHEMA = {
-
+    'logging': {
+        'type': 'dict',
+        'default': {},
+        'schema': {
+            'loggers': {
+                'type': 'list',
+                'schema': {'type': 'string'},
+                'default': []
+            },
+            'filename': {'type': 'string', 'default': ''},
+            'root': {
+                'type': 'string',
+                'default': '/logs'
+            },
+            'backupCount': {
+                'type': 'integer',
+                'default': 5
+            },
+            'maxBytes': {'type': 'integer', 'default': 104857600}  # 100mb
+        }
+    }
 }
 
 
