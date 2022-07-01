@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
 from typing import Optional, NamedTuple
 
-from lib.api.models.events import Notification, Repetition, Event, ERepeatType, EDecision
-from lib.api.models.common import EDay
+from lib.models.events import Repetition, Event, ERepeatType, EDecision
+from lib.models.common import EDay
 
 from asyncpg import Connection
 from lib.util.repetitions import set_start_date_due_to_interval
@@ -39,7 +39,7 @@ def count_offset(offset: str) -> timedelta:
         return timedelta(minutes=num)
     elif offset[-1] == 'h':
         return timedelta(hours=num)
-    elif offset[-2] == 'd':
+    elif offset[-1] == 'd':
         return timedelta(days=num)
 
 
@@ -50,8 +50,9 @@ async def insert_notifications(connection: Connection, event: Event):
     logins = {event.author.login, *(p.user.login for p in event.participants if p.decision != EDecision.no)}
 
     start_time = event.start_time
+
     end_find_start_notify = timedelta(weeks=200)
-    if event.repetition.type == ERepeatType.yearly:
+    if event.repetition and event.repetition.type == ERepeatType.yearly:
         end_find_start_notify = timedelta(weeks=70 * event.repetition.each)
 
     params = []
@@ -59,16 +60,19 @@ async def insert_notifications(connection: Connection, event: Event):
         offset = count_offset(notification.offset)
 
         event_start = event.start_time
-        if start_time - offset < datetime.now() + timedelta(minutes=5):
-            event_start = set_start_date_due_to_interval(
-                repetition=event.repetition,
-                event_start_date=event.start_time,
-                repeat_start_date=datetime.now() + offset + timedelta(minutes=5),
-                repeat_end_date=end_find_start_notify,
-            )
+        if start_time - offset < datetime.now():
+            if event.repetition:
+                event_start = set_start_date_due_to_interval(
+                    repetition=event.repetition,
+                    event_start_date=event.start_time,
+                    repeat_start_date=datetime.now() + offset + timedelta(minutes=5),
+                    repeat_end_date=datetime.now() + end_find_start_notify,
+                )
+            else:
+                continue
 
         params.extend(
-            (notification.offset, notification.channel.value, event_start - offset, event.id, login)
+            (notification.offset, event_start - offset, notification.channel.value, event.id, login)
             for login in logins
         )
 
@@ -96,11 +100,40 @@ class NotificationRecord(NamedTuple):
     last_notify_at: Optional[datetime] = None
     repetition: Optional[Repetition] = None
 
+    @classmethod
+    def from_row(cls, row: dict) -> 'NotificationRecord':
+        repetition = None
+        if row['repeat_type'] is not None:
+            weekly_days = []
+            for v in row['repeat_weekly_days'].split(','):
+                if v:
+                    weekly_days.append(EDay(v))
+
+            repetition = Repetition(
+                type=ERepeatType(row['repeat_type']),
+                weekly_days=weekly_days,
+                monthly_last_week=row['repeat_monthly_last_week'],
+                due_date=row['repeat_due_date'],
+                each=row['repeat_each'],
+            )
+
+        result = cls(
+            id=row['id'],
+            offset_notify=row['offset_notify'],
+            next_notify_at=row['next_notify_at'],
+            channel=row['channel'],
+            event_id=row['event_id'],
+            recipient=row['recipient'],
+            repetition=repetition,
+        )
+
+        return result
+
 
 async def get_pending_notifications(connection: Connection) -> list[NotificationRecord]:
     rows = await connection.fetch(
         f'''
-            SELECT n.*, e.repeat_due_date, e.repeat_each, e.repeat_monthly_last_week, e.repeat_type 
+            SELECT n.*, e.repeat_due_date, e.repeat_each, e.repeat_monthly_last_week, e.repeat_type, e.repeat_weekly_days
                 FROM {NOTIFICATION_TABLE} n
             RIGHT JOIN {EVENTS_TABLE} e on e.id = n.event_id
             WHERE n.next_notify_at IS NOT NULL and n.next_notify_at <= $1;
@@ -110,29 +143,18 @@ async def get_pending_notifications(connection: Connection) -> list[Notification
 
     result = []
     for row in rows:
-        notification = NotificationRecord(
-            id=row['id'],
-            offset_notify=row['offset_notify'],
-            next_notify_at=row['next_notify_at'],
-            channel=row['channel'],
-            event_id=row['event_id'],
-            recipient=row['recipient'],
-        )
-
-        if row['repeat_type'] is not None:
-            weekly_days = []
-            for v in row['repeat_weekly_days'].split(','):
-                if v:
-                    weekly_days.append(EDay(v))
-
-            notification.repetition = Repetition(
-                type=ERepeatType(row['repeat_type']),
-                weekly_days=weekly_days,
-                monthly_last_week=row['repeat_monthly_last_week'],
-                due_date=row['repeat_due_date'],
-                each=row['repeat_each'],
-            )
-
-        result.append(notification)
+        result.append(NotificationRecord.from_row(row))
 
     return result
+
+
+async def update_notifications(connection: Connection, params: list[tuple[int, Optional[datetime], Optional[datetime]]]):
+    await connection.executemany(
+        f'''
+            UPDATE {NOTIFICATION_TABLE} SET 
+                next_notify_at = $2,
+                last_notify_at = $3
+            WHERE id = $1;
+        ''',
+        params
+    )

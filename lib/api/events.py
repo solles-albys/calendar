@@ -1,9 +1,10 @@
+from asyncpg import exceptions as exc
 from fastapi import APIRouter, HTTPException
-from lib.api.models.events import RCreateEvent, Event, EDecision
+
+from lib.models.events import RCreateEvent, Event, EDecision
 from lib.db import Database
 from lib.sql.event import insert_event, get_one_event
 from lib.sql.participation import accept_participation
-from asyncpg import exceptions as exc
 
 router = APIRouter(
     prefix='/event'

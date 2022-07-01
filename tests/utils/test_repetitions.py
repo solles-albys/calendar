@@ -1,6 +1,5 @@
-import pytest
-from lib.api.models.events import Repetition, ERepeatType
-from lib.api.models.common import EDay
+from lib.models.events import Repetition, ERepeatType
+from lib.models.common import EDay
 from lib.util.date import _get_next_month_num
 from lib.util.repetitions import iterate_repetitions
 from datetime import datetime, timedelta

@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-from lib.api.models.common import EDay
 from math import ceil
 
 
@@ -11,16 +10,6 @@ def _get_next_month_num(current: datetime, inc=1) -> (int, int):
         next_month -= 12
 
     return year, next_month
-
-
-# def get_next_month_exact_day(current: datetime, each_month: int, day_num: int):
-#     next_month_num = _get_next_month_num(current, inc=each_month)
-#     next_month = current.replace(month=next_month_num)
-#     last_day_month = current.replace(month=_get_next_month_num(next_month)) - timedelta(days=1)
-#     if last_day_month.day < day_num:
-#         return last_day_month
-#
-#     return next_month.replace(day=day_num)
 
 
 def get_next_month_exact_week_day(current: datetime, week_no: int, inc=1) -> datetime:

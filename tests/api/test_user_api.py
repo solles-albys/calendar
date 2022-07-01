@@ -2,11 +2,11 @@ import datetime
 
 import pytest
 from fastapi import HTTPException
-from lib.api.methods.users import create_user, get_user_events
-from lib.api.methods.events import create_event
-from lib.api.models.users import UserFull, Name
-from lib.api.models.events import Event, RCreateEvent, Repetition, Participant, ERepeatType
-from lib.api.models.common import EDay
+from lib.api.users import create_user, get_user_events
+from lib.api.events import create_event
+from lib.models.users import UserFull, Name
+from lib.models.events import RCreateEvent, Repetition, Participant, ERepeatType
+from lib.models.common import EDay
 from lib.sql.const import USERS_TABLE
 from tests.full_wait import full_wait_pending
 from dateutil.relativedelta import relativedelta

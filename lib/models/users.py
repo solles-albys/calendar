@@ -3,7 +3,7 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from lib.api.models.common import EDay, Time
+from lib.models.common import EDay, Time
 
 
 class Name(BaseModel):

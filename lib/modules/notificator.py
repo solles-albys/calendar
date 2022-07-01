@@ -3,10 +3,10 @@ from asyncpg import Connection
 from typing import Optional
 from datetime import datetime, timedelta
 
-from lib.util.module import BaseModule
+from lib.util.module import BaseModule, SingletonModule
 from lib.db import Database
-from lib.api.models.events import ERepeatType
-from lib.sql.notifications import get_pending_notifications, NotificationRecord, count_offset
+from lib.models.events import ERepeatType
+from lib.sql.notifications import get_pending_notifications, NotificationRecord, count_offset, update_notifications
 from lib.util.repetitions import set_start_date_due_to_interval
 
 from logging import getLogger
@@ -15,7 +15,7 @@ from logging import getLogger
 logger = getLogger('notificator')
 
 
-class Notificator(BaseModule):
+class Notificator(BaseModule, metaclass=SingletonModule):
     def __init__(
             self,
             config: dict = None,
@@ -23,12 +23,16 @@ class Notificator(BaseModule):
     ):
         super().__init__(config, loop)
 
-        self.task = loop.create_task(self.notification_loop)
+        self.task: asyncio.Task = None
 
     async def on_shutdown(self):
         self.task.cancel('shutdown')
 
+    def start(self):
+        self.task = asyncio.create_task(self.notification_loop())
+
     async def notification_loop(self):
+        logger.info(f'started loop {self.__class__.__name__}.{self.notification_loop.__name__}')
         while True:
             try:
                 async with Database().connect() as connection:
@@ -62,7 +66,7 @@ class Notificator(BaseModule):
                 (notification.id, next_notification_time, last_send_time)
             )
 
-        # TODO: update notifications
+        await update_notifications(connection, to_update_times)
 
     @staticmethod
     def find_next_notification_time(notification: NotificationRecord) -> Optional[datetime]:
@@ -83,7 +87,8 @@ class Notificator(BaseModule):
 
         return next_start_date
 
-    async def send_notification(self, notification: NotificationRecord):
+    @staticmethod
+    async def send_notification(notification: NotificationRecord):
         logger.debug(
             f'notification: to {notification.recipient} '
             f'via {notification.channel} about event {notification.event_id}'

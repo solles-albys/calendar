@@ -1,12 +1,13 @@
+import re
+from datetime import datetime, timedelta
+from enum import Enum
 from typing import Optional
 
 from pydantic import BaseModel, validator
-from enum import Enum
-from datetime import datetime, timedelta
-from lib.api.models.users import User
-from lib.api.models.common import EDay
 
-import re
+from lib.models.common import EDay
+from lib.models.users import User
+
 
 class EDecision(str, Enum):
     yes = 'yes'
@@ -63,13 +64,15 @@ class Notification(BaseModel):
             result = timedelta(minutes=num)
         elif value[-1] == 'h':
             result = timedelta(hours=num)
-        elif value[-2] == 'd':
+        elif value[-1] == 'd':
             result = timedelta(days=num)
         else:
             raise ValueError(f'unknown offset type: {value[-1]}')
 
         if result > timedelta(days=50):
             raise ValueError('offset should be less then 50 days')
+
+        return value
 
 
 class Event(BaseModel):

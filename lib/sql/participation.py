@@ -1,6 +1,6 @@
 from asyncpg import Connection
 
-from lib.api.models.events import Participant, EDecision
+from lib.models.events import Participant, EDecision
 from lib.sql.const import USERS_TABLE, EVENTS_TABLE, PARTICIPATION_TABLE
 
 

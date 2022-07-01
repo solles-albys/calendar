@@ -1,17 +1,17 @@
 import argparse
+import logging.config
 
 import uvicorn
 import uvloop
 from fastapi import FastAPI
 
-import logging.config
-
-from lib.api.methods import events, funcs, users
+from lib.api import auth, events, funcs, users
 from lib.config import parse_config
-from lib.util.module import get_all_module_classes
 from lib.db import Database
-
+from lib.modules.notificator import Notificator  # noqa
+from lib.modules.auth import Auth  # noqa
 from lib.sql import create_tables
+from lib.util.module import get_all_module_classes
 
 uvloop.install()
 
@@ -20,6 +20,7 @@ app = FastAPI(title='Calendar')
 app.include_router(events.router)
 app.include_router(funcs.router)
 app.include_router(users.router)
+app.include_router(auth.router)
 
 
 @app.on_event("shutdown")
@@ -40,10 +41,12 @@ async def on_start():
         if module.CONFIG_KEY:
             module(config[module.CONFIG_KEY])
         else:
-            module()
+            module(None)
 
     async with Database().connect() as connection:
         await create_tables(connection)
+
+    Notificator().start()
 
 
 if __name__ == '__main__':

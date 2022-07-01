@@ -14,7 +14,7 @@ async def db():
         'port': os.environ['POSTGRES_RECIPE_PORT'],
         'dbname': os.environ['POSTGRES_RECIPE_DBNAME'],
         'user': os.environ['POSTGRES_RECIPE_USER'],
-        'password': None,
+        'password': os.environ.get('POSTGRES_RECIPE_PASSWORD', None),
         'min_size': 1,
         'max_size': int(os.environ['POSTGRES_RECIPE_MAX_CONNECTIONS']),
         'timeout': 5,

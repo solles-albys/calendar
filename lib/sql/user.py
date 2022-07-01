@@ -1,9 +1,8 @@
-from lib.api.models.users import UserFull, User, Name
-from lib.api.models.common import EDay, Time
+from lib.models.users import UserFull, User, Name
+from lib.models.common import EDay, Time
 from asyncpg import Connection
 from lib.sql.const import USERS_TABLE
 from typing import Union, Iterable, Optional
-from datetime import datetime
 
 
 async def create_table_users(connection: Connection):
@@ -106,6 +105,15 @@ async def get_one_user(
     )
 
     return user_row_to_model(row, full=full)
+
+
+async def get_many_users(connection: Connection, logins: list[str], full=False) -> list[Union[UserFull, User]]:
+    rows = await connection.fetch(
+        f'SELECT * FROM {USERS_TABLE} WHERE login = ANY($1::text[])',
+        set(logins)
+    )
+
+    return [user_row_to_model(row, full=full) for row in rows]
 
 
 async def get_user_by_session(connection: Connection, session_id: str) -> Optional[User]:

@@ -1,10 +1,9 @@
-import os
 from datetime import datetime
 
 import asyncpg.exceptions as exc
 from fastapi import APIRouter, HTTPException
 
-from lib.api.models.users import UserFull
+from lib.models.users import UserFull
 from lib.db import Database
 from lib.sql.user import insert_user, get_one_user
 from lib.sql.event import get_user_events as sql_get_user_events

@@ -1,11 +1,11 @@
 from datetime import datetime, timedelta
-from typing import Optional, Generator
-from lib.api.models.common import EDay
+from typing import Optional
+from lib.models.common import EDay
 
 from dateutil._common import weekday
 from dateutil.relativedelta import relativedelta
 
-from lib.api.models.events import ERepeatType, Repetition
+from lib.models.events import ERepeatType, Repetition
 from lib.util import date
 
 

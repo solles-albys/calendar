@@ -1,12 +1,13 @@
 import asyncio
 import os
 from typing import Optional
+from asyncpg import Connection
 
 from lib.db.pool import PoolManager
-from lib.util.module import BaseModule
+from lib.util.module import BaseModule, SingletonModule
 
 
-class Database(BaseModule):
+class Database(BaseModule, metaclass=SingletonModule):
     CONFIG_KEY = 'database'
     CONFIG_SCHEME = {
         'type': 'dict',
@@ -53,7 +54,7 @@ class Database(BaseModule):
     def dsn(self):
         return f'postgresql://{self.user}:{self.password}@{",".join("%s:%s" % (host, self.port) for host in self.hosts)}/{self.dbname}'
 
-    def connect(self, read_only=False):
+    def connect(self, read_only=False) -> Connection:
         return self.pool.acquire(read_only=read_only, timeout=self.timeout)
 
     async def close(self):

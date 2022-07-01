@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from lib.api.models.funcs import RCalcFreeTime, FreeTime
+from lib.models.funcs import RCalcFreeTime, FreeTime
 from lib.sql.funcs import get_users_busy_time
 from lib.db import Database
 from datetime import datetime

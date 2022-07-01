@@ -1,11 +1,11 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional
 
 from asyncpg import Connection
 
-from lib.api.models.events import RCreateEvent, Event, Repetition, Participant, EDecision, ERepeatType
-from lib.api.models.users import User
-from lib.api.models.common import EDay
+from lib.models.events import RCreateEvent, Event, Repetition, Participant, EDecision, ERepeatType
+from lib.models.users import User
+from lib.models.common import EDay
 from lib.sql.user import get_one_user, get_users_from_event_rows
 from lib.sql.participation import insert_many_participation
 from lib.sql.notifications import insert_notifications
@@ -75,6 +75,7 @@ async def insert_event(connection: Connection, request: RCreateEvent) -> Event:
             description=request.description,
             participants=request.participants,
             repetition=request.repetition,
+            notifications=request.notifications,
         )
 
         if request.notifications:

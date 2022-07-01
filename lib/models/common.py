@@ -18,6 +18,11 @@ class EDay(str, Enum):
             if d.weekday() == num:
                 return day
 
+    def weekday(self) -> int:
+        for num, day in zip(range(7), self.__class__):
+            if day == self:
+                return num
+
 
 class Time(BaseModel):
     hour: int
@@ -38,3 +43,6 @@ class Time(BaseModel):
     def from_str(cls, v: str):
         hour, minute = v.split(':')
         return cls(hour=int(hour), minute=int(minute))
+
+    def __lt__(self, other):
+        return (self.hour, self.minute) < (other.hour, other.minute)

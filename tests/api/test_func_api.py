@@ -1,12 +1,12 @@
 import pytest
 from tests.full_wait import full_wait_pending
 
-from lib.api.models.users import UserFull, Name
-from lib.api.methods.users import create_user
-from lib.api.methods.events import create_event
-from lib.api.methods.funcs import calculate_free_slot
-from lib.api.models.funcs import RCalcFreeTime, FreeTime
-from lib.api.models.events import Event, RCreateEvent
+from lib.models.users import UserFull, Name
+from lib.api.users import create_user
+from lib.api.events import create_event
+from lib.api.funcs import calculate_free_slot
+from lib.models.funcs import RCalcFreeTime
+from lib.models.events import RCreateEvent
 from datetime import datetime, timedelta
 
 USER_ONE = UserFull(login='one', name=Name(first='one', last='one'))
